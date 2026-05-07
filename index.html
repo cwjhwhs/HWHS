@@ -3,113 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StudyX AI 刷題平台</title>
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <title>StudyX AI 刷題</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide { animation: slideIn 0.5s ease-out forwards; }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4 font-sans">
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
 
-    <div class="max-w-md w-full bg-white shadow-2xl rounded-[2rem] p-8 border border-slate-100">
-        <div class="text-center mb-8">
-            <h1 class="text-4xl font-black text-blue-600 tracking-tight">StudyX AI</h1>
-            <div class="h-1 w-12 bg-blue-600 mx-auto mt-2 rounded-full"></div>
+    <div class="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-8 border border-gray-100">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-black text-blue-600">StudyX AI</h1>
+            <p class="text-gray-400 text-sm mt-1">無限智能題庫</p>
         </div>
 
-        <div id="quiz-box" class="hidden space-y-6 animate-fade-in">
-            <div id="question" class="text-xl font-bold text-slate-800 leading-relaxed bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                </div>
-            
-            <div id="options" class="grid gap-3">
-                </div>
+        <div id="main-content" class="min-h-[300px]">
+            <div id="quiz-box" class="hidden animate-slide">
+                <div id="question" class="text-xl font-bold text-gray-800 bg-blue-50 p-6 rounded-3xl mb-6 leading-relaxed"></div>
+                <div id="options" class="grid gap-3"></div>
+            </div>
 
-            <div id="result" class="hidden p-5 rounded-2xl font-bold text-center text-lg shadow-inner">
-                </div>
+            <div id="welcome" class="text-center py-10">
+                <div class="text-6xl mb-4">📖</div>
+                <p class="text-gray-500">準備好開始練習了嗎？</p>
+            </div>
         </div>
 
-        <div id="empty-state" class="py-10 text-center">
-            <div class="text-6xl mb-4">🎯</div>
-            <p class="text-slate-500">準備好接受 AI 的挑戰了嗎？</p>
-        </div>
+        <div id="result" class="hidden mt-6 p-4 rounded-2xl text-center font-bold animate-slide"></div>
 
-        <button id="action-btn" onclick="generateQuiz()" class="mt-8 w-full bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl text-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-all flex items-center justify-center gap-2">
-            <span>開始 AI 出題</span>
+        <button id="btn" onclick="getQuiz()" class="w-full mt-8 bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl text-xl font-bold shadow-lg shadow-blue-100 active:scale-95 transition-all">
+            🎯 開始出題
         </button>
     </div>
 
     <script>
-        const API_KEY = "AIzaSyBpMbieq3C1IKMDwjPp2Bf7EM8DWSjZVP8";
+        const KEY = "AIzaSyBpMbieq3C1IKMDwjPp2Bf7EM8DWSjZVP8";
+        
+        // 備用題庫（防止 API 抽風）
+        const backupQuiz = [
+            {q: "若 2x + 5 = 13，則 x = ?", o: ["2", "4", "6", "8"], a: "4"},
+            {q: "下列何者為質數？", o: ["9", "15", "17", "21"], a: "17"}
+        ];
 
-        async function generateQuiz() {
-            const btn = document.getElementById('action-btn');
-            const quizBox = document.getElementById('quiz-box');
-            const emptyState = document.getElementById('empty-state');
+        async function getQuiz() {
+            const btn = document.getElementById('btn');
+            const qBox = document.getElementById('quiz-box');
+            const wel = document.getElementById('welcome');
+            const res = document.getElementById('result');
             const qDiv = document.getElementById('question');
             const oDiv = document.getElementById('options');
-            const rDiv = document.getElementById('result');
 
-            // 讀取狀態
-            btn.innerHTML = `<svg class="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 思考題目中...`;
+            btn.innerText = "⚡ AI 思考中...";
             btn.disabled = true;
-            rDiv.classList.add('hidden');
+            res.classList.add('hidden');
 
-            const prompt = "請出一道國中數學選擇題(繁體中文)。輸出格式請嚴格遵守 JSON：{\"q\":\"題目內容\",\"o\":[\"選項1\",\"選項2\",\"選項3\",\"選項4\"],\"a\":\"正確答案文字\"}。請直接回傳 JSON 內容，不要包含 ```json 或其餘說明文字。";
+            const prompt = "請出一道國中數學選擇題(繁體中文)。格式: {\"q\":\"題目\",\"o\":[\"A\",\"B\",\"C\",\"D\"],\"a\":\"正確答案\"}。只給 JSON。";
 
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${KEY}`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                 });
 
-                if (!response.ok) throw new Error('API Error');
+                const data = await resp.json();
+                let text = data.candidates[0].content.parts[0].text.replace(/```json|```/g, "").trim();
+                render(JSON.parse(text));
+            } catch (e) {
+                console.log("使用備用題庫");
+                render(backupQuiz[Math.floor(Math.random() * backupQuiz.length)]);
+            }
 
-                const data = await response.json();
-                let rawText = data.candidates[0].content.parts[0].text;
-                
-                // 清洗可能的 Markdown 標籤
-                const cleanJson = rawText.replace(/```json|```/g, "").trim();
-                const quiz = JSON.parse(cleanJson);
-
-                // 更新介面
-                emptyState.classList.add('hidden');
-                quizBox.classList.remove('hidden');
+            function render(quiz) {
+                wel.classList.add('hidden');
+                qBox.classList.remove('hidden');
                 qDiv.innerText = quiz.q;
                 oDiv.innerHTML = "";
-                
                 quiz.o.forEach(opt => {
                     const b = document.createElement('button');
                     b.innerText = opt;
-                    b.className = "w-full p-5 text-left border-2 border-slate-100 rounded-2xl hover:bg-blue-50 hover:border-blue-500 transition-all font-semibold text-slate-700";
+                    b.className = "w-full p-4 text-left border-2 border-gray-100 rounded-2xl hover:bg-blue-50 hover:border-blue-500 transition-all font-semibold";
                     b.onclick = () => {
-                        rDiv.classList.remove('hidden');
-                        // 判斷邏輯：如果選項包含正確答案，或正確答案包含選項
-                        if (opt === quiz.a || opt.includes(quiz.a) || quiz.a.includes(opt)) {
-                            rDiv.innerText = "🎉 答對了！你太強了！";
-                            rDiv.className = "p-5 rounded-2xl font-bold text-center text-lg bg-green-50 text-green-700 border border-green-100";
+                        res.classList.remove('hidden');
+                        if(opt.includes(quiz.a) || quiz.a.includes(opt)) {
+                            res.innerText = "✅ 答對了！";
+                            res.className = "mt-6 p-4 rounded-2xl text-center font-bold bg-green-100 text-green-700 animate-slide";
                         } else {
-                            rDiv.innerText = "❌ 答錯了！正確答案是：" + quiz.a;
-                            rDiv.className = "p-5 rounded-2xl font-bold text-center text-lg bg-red-50 text-red-700 border border-red-100";
+                            res.innerText = "❌ 答錯了，答案是：" + quiz.a;
+                            res.className = "mt-6 p-4 rounded-2xl text-center font-bold bg-red-100 text-red-700 animate-slide";
                         }
-                        btn.innerHTML = "下一題 ➡️";
+                        btn.innerText = "下一題 ➡️";
                         btn.disabled = false;
-                        btn.classList.remove('hidden');
                     };
                     oDiv.appendChild(b);
                 });
-
-                btn.classList.add('hidden');
-
-            } catch (error) {
-                console.error(error);
-                alert("AI 出題遇到一點問題，請再試一次！");
-                btn.innerHTML = "重新嘗試";
-                btn.disabled = false;
             }
         }
     </script>
 </body>
 </html>
-
