@@ -6,31 +6,31 @@
     <title>StudyX AI 刷題</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; } }
-        .animate-pop { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes slide { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-quiz { animation: slide 0.4s ease-out forwards; }
     </style>
 </head>
-<body class="bg-slate-100 min-h-screen flex items-center justify-center p-4">
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
 
-    <div class="max-w-md w-full bg-white rounded-[2rem] shadow-2xl p-8 border border-slate-200">
+    <div class="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-8 border border-gray-100">
         <h1 class="text-3xl font-black text-blue-600 text-center mb-8">StudyX AI</h1>
 
-        <div id="display-area" class="min-h-[250px] flex flex-col justify-center">
-            <div id="guide" class="text-center space-y-4">
-                <div class="text-5xl">🤖</div>
-                <p class="text-slate-500 font-medium">100% 原生 AI 出題中...</p>
+        <div id="content-area" class="min-h-[280px]">
+            <div id="quiz-display" class="hidden animate-quiz space-y-6">
+                <div id="question" class="text-xl font-bold text-gray-800 bg-gray-50 p-6 rounded-3xl border border-gray-100 leading-relaxed"></div>
+                <div id="options" class="grid gap-3"></div>
             </div>
 
-            <div id="quiz-content" class="hidden animate-pop space-y-6">
-                <div id="question" class="text-xl font-bold text-slate-800 bg-slate-50 p-6 rounded-2xl border border-slate-100 leading-relaxed"></div>
-                <div id="options" class="grid gap-3"></div>
+            <div id="loading-ui" class="text-center py-10">
+                <div class="text-5xl mb-4">🚀</div>
+                <p class="text-gray-400 font-medium">點擊下方按鈕，生成全新題目</p>
             </div>
         </div>
 
-        <div id="feedback" class="hidden mt-6 p-4 rounded-xl text-center font-bold animate-pop"></div>
+        <div id="ans-feedback" class="hidden mt-6 p-4 rounded-2xl text-center font-bold animate-quiz"></div>
 
-        <button id="main-btn" onclick="askAI()" class="w-full mt-8 bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl text-xl font-bold shadow-lg active:scale-95 transition-all">
-            🎯 開始 AI 出題
+        <button id="go-btn" onclick="askAI()" class="w-full mt-8 bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl text-xl font-bold shadow-lg active:scale-95 transition-all">
+            🎯 產生新題目
         </button>
     </div>
 
@@ -38,20 +38,23 @@
         const API_KEY = "AIzaSyBpMbieq3C1IKMDwjPp2Bf7EM8DWSjZVP8";
 
         async function askAI() {
-            const btn = document.getElementById('main-btn');
-            const guide = document.getElementById('guide');
-            const content = document.getElementById('quiz-content');
+            const btn = document.getElementById('go-btn');
+            const quizUI = document.getElementById('quiz-display');
+            const loadUI = document.getElementById('loading-ui');
             const qDiv = document.getElementById('question');
             const oDiv = document.getElementById('options');
-            const fDiv = document.getElementById('feedback');
+            const fDiv = document.getElementById('ans-feedback');
 
-            // 進入讀取狀態
             btn.disabled = true;
-            btn.innerText = "⚡ AI 運算中...";
+            btn.innerText = "🎲 正在構思新題目...";
             fDiv.classList.add('hidden');
 
-            // 強大的 Prompt 指令
-            const prompt = "請出一道國中數學題(繁體中文)。格式嚴格限制為 JSON: {\"q\":\"題目\",\"o\":[\"A選項\",\"B選項\",\"C選項\",\"D選項\"],\"a\":\"正確答案內容\"}。不要有任何解釋，只要 JSON。";
+            // 核心：加入隨機數與多樣化指令，防止 AI 偷懶給重複題目
+            const randomSeed = Math.floor(Math.random() * 10000);
+            const topics = ["幾何", "代數", "機率", "函數", "數列", "三角形", "圓形", "方程式"];
+            const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+            
+            const prompt = `隨機碼:${randomSeed}。請出一道國中數學題，主題是${randomTopic}。題目數值必須隨機，不可與常見例題重複。格式嚴格限制 JSON: {"q":"題目","o":["A","B","C","D"],"a":"正確答案文字"}。不要解釋。`;
 
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
@@ -61,47 +64,38 @@
                 });
 
                 const data = await response.json();
-                
-                // 檢查 AI 是否有正常回傳內容
-                if (!data.candidates || !data.candidates[0]) throw new Error("AI 沒回傳");
-
-                let rawText = data.candidates[0].content.parts[0].text;
-                
-                // 強力清洗 JSON (去掉可能存在的 ```json 等標籤)
-                const jsonStr = rawText.match(/\{[\s\S]*\}/)[0];
+                let raw = data.candidates[0].content.parts[0].text;
+                const jsonStr = raw.match(/\{[\s\S]*\}/)[0];
                 const quiz = JSON.parse(jsonStr);
 
-                // 顯示題目
-                guide.classList.add('hidden');
-                content.classList.remove('hidden');
+                loadUI.classList.add('hidden');
+                quizUI.classList.remove('hidden');
                 qDiv.innerText = quiz.q;
                 oDiv.innerHTML = "";
 
                 quiz.o.forEach(opt => {
                     const b = document.createElement('button');
                     b.innerText = opt;
-                    b.className = "w-full p-4 text-left border-2 border-slate-100 rounded-xl hover:bg-blue-50 hover:border-blue-500 transition-all font-semibold text-slate-700";
+                    b.className = "w-full p-4 text-left border-2 border-gray-100 rounded-2xl hover:bg-blue-50 hover:border-blue-500 transition-all font-semibold text-gray-700";
                     b.onclick = () => {
                         fDiv.classList.remove('hidden');
-                        // 判斷對錯
                         if (opt === quiz.a || opt.includes(quiz.a) || quiz.a.includes(opt)) {
-                            fDiv.innerText = "🎉 答對了！AI 也難不倒你！";
-                            fDiv.className = "mt-6 p-4 rounded-xl text-center font-bold bg-green-100 text-green-700 animate-pop";
+                            fDiv.innerText = "🎉 答對了！";
+                            fDiv.className = "mt-6 p-4 rounded-2xl text-center font-bold bg-green-100 text-green-700 animate-quiz";
                         } else {
-                            fDiv.innerText = "❌ 答錯了！答案是：" + quiz.a;
-                            fDiv.className = "mt-6 p-4 rounded-xl text-center font-bold bg-red-100 text-red-700 animate-pop";
+                            fDiv.innerText = "❌ 答錯了，答案是：" + quiz.a;
+                            fDiv.className = "mt-6 p-4 rounded-2xl text-center font-bold bg-red-100 text-red-700 animate-quiz";
                         }
                         btn.disabled = false;
-                        btn.innerText = "下一題 ➡️";
+                        btn.innerText = "再抽一題 ➡️";
                     };
                     oDiv.appendChild(b);
                 });
 
             } catch (err) {
-                console.error(err);
-                alert("AI 請求超時或被攔截，請再試一次！");
+                alert("AI 腦袋卡住了，請重試！");
                 btn.disabled = false;
-                btn.innerText = "重試出題";
+                btn.innerText = "重試一次";
             }
         }
     </script>
