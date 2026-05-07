@@ -6,79 +6,90 @@
     <title>StudyX AI 刷題平台</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-50 min-h-screen flex flex-col items-center justify-center p-4">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
 
-    <div class="max-w-md w-full bg-white shadow-2xl rounded-3xl p-8 text-center">
-        <h1 class="text-4xl font-black text-blue-600 mb-2">StudyX</h1>
-        <p class="text-slate-500 mb-8">AI 無限題目練習</p>
+    <div class="max-w-md w-full bg-white shadow-xl rounded-3xl p-6 text-center border border-gray-200">
+        <h1 class="text-3xl font-black text-blue-600 mb-2">StudyX AI</h1>
+        <p class="text-gray-400 text-sm mb-6">無限題目生成系統</p>
 
-        <div id="quiz-container" class="hidden text-left space-y-4">
-            <div id="question" class="text-xl font-bold text-slate-800 bg-slate-100 p-4 rounded-2xl"></div>
-            <div id="options" class="grid gap-3"></div>
-            <div id="feedback" class="hidden p-4 rounded-2xl font-bold"></div>
+        <div id="quiz-box" class="hidden text-left animate-fade-in">
+            <div id="question" class="text-lg font-bold text-gray-800 bg-blue-50 p-5 rounded-2xl mb-4 border border-blue-100"></div>
+            <div id="options" class="grid gap-3 mb-6"></div>
+            <div id="result" class="hidden p-4 rounded-xl font-bold text-center mb-4"></div>
         </div>
 
-        <button id="start-btn" onclick="fetchQuiz()" class="w-full bg-blue-600 text-white py-4 rounded-2xl text-xl font-bold shadow-lg active:scale-95 transition-all">
+        <button id="action-btn" onclick="generateQuiz()" class="w-full bg-blue-600 text-white py-4 rounded-2xl text-xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition-all">
             🎯 開始 AI 出題
         </button>
     </div>
 
     <script>
-        // 總工程師提醒：把你的 Gemini Key 填在這裡 (暫時測試用)
-        const API_KEY = "你的_GEMINI_API_KEY"; 
+        const API_KEY = "AIzaSyBpMbieq3C1IKMDwjPp2Bf7EM8DWSjZVP8"; // 已幫你填入
 
-        async function fetchQuiz() {
-            const btn = document.getElementById('start-btn');
-            const container = document.getElementById('quiz-container');
+        async function generateQuiz() {
+            const btn = document.getElementById('action-btn');
+            const quizBox = document.getElementById('quiz-box');
             const qDiv = document.getElementById('question');
             const oDiv = document.getElementById('options');
-            const fDiv = document.getElementById('feedback');
+            const rDiv = document.getElementById('result');
 
-            btn.innerText = "AI 思考中...";
+            // 狀態初始化
+            btn.innerText = "⚡ AI 思考中...";
             btn.disabled = true;
+            rDiv.classList.add('hidden');
 
-            const prompt = "請出一道國中數學題(JSON格式): { 'q': '題目', 'o': ['A','B','C','D'], 'a': '正確答案' }";
-            
+            const prompt = "請出一道國中數學選擇題(JSON格式): { 'q': '題目', 'o': ['選項A','選項B','選項C','選項D'], 'a': '正確答案文字' }。請只回傳 JSON，不要有其他文字。";
+
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
                     method: "POST",
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                 });
-                const data = await response.json();
-                const rawText = data.candidates[0].content.parts[0].text.replace(/```json|```/g, "");
-                const quiz = JSON.parse(rawText);
 
-                // 顯示介面
-                btn.classList.add('hidden');
-                container.classList.remove('hidden');
-                fDiv.classList.add('hidden');
-                
+                const data = await response.json();
+                const rawResponse = data.candidates[0].content.parts[0].text;
+                const cleanJson = rawResponse.replace(/```json|```/g, "").trim();
+                const quiz = JSON.parse(cleanJson);
+
+                // 渲染畫面
                 qDiv.innerText = quiz.q;
                 oDiv.innerHTML = "";
                 quiz.o.forEach(opt => {
                     const b = document.createElement('button');
                     b.innerText = opt;
-                    b.className = "w-full p-4 border-2 border-slate-200 rounded-xl hover:bg-blue-50 hover:border-blue-500 transition text-left";
+                    b.className = "w-full p-4 text-left border-2 border-gray-100 rounded-xl hover:bg-blue-50 hover:border-blue-500 transition-all font-medium";
                     b.onclick = () => {
-                        fDiv.classList.remove('hidden');
-                        if(opt === quiz.a) {
-                            fDiv.innerText = "🎉 答對了！";
-                            fDiv.className = "p-4 rounded-2xl font-bold bg-green-100 text-green-700";
+                        rDiv.classList.remove('hidden');
+                        if (opt === quiz.a) {
+                            rDiv.innerText = "🎉 太棒了！答對了！";
+                            rDiv.className = "p-4 rounded-xl font-bold text-center mb-4 bg-green-100 text-green-700";
                         } else {
-                            fDiv.innerText = "❌ 再想想看，答案是：" + quiz.a;
-                            fDiv.className = "p-4 rounded-2xl font-bold bg-red-100 text-red-700";
+                            rDiv.innerText = "❌ 答錯了，正確答案是：" + quiz.a;
+                            rDiv.className = "p-4 rounded-xl font-bold text-center mb-4 bg-red-100 text-red-700";
                         }
-                        setTimeout(() => { btn.classList.remove('hidden'); btn.innerText = "下一題 ➡️"; btn.disabled = false; }, 2000);
+                        btn.innerText = "下一題 ➡️";
+                        btn.disabled = false;
+                        btn.classList.remove('hidden');
                     };
                     oDiv.appendChild(b);
                 });
-            } catch (err) {
-                alert("API 連線失敗，請檢查 Key 是否正確");
+
+                quizBox.classList.remove('hidden');
+                btn.classList.add('hidden');
+
+            } catch (error) {
+                console.error(error);
+                alert("AI 出題失敗，請稍後再試。");
                 btn.innerText = "重試";
                 btn.disabled = false;
             }
         }
     </script>
+
+    <style>
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+    </style>
 </body>
 </html>
-
